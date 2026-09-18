@@ -1,120 +1,138 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useState, useEffect } from 'react'
+import Box from './components/Box'
 import './App.css'
 
+const PALETTE = [
+  '#aa3bff', '#e91ee0', '#dc143c', '#f4d90c',
+  '#f2711c', '#3b6fd6', '#33d6e6', '#a4e438', '#2ecc71',
+]
+
+const DEFAULT_COLOR = '#3f9986'
+const GRID_ROWS = 3
+const GRID_COLS = 3
+const GRID_SIZE = GRID_ROWS * GRID_COLS
+const PREVIEW_ON_MS = 600
+const PREVIEW_GAP_MS = 200
+
+function shuffle(array) {
+  const result = [...array]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+function createSequence() {
+  return shuffle([...Array(GRID_SIZE).keys()])
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [sequence, setSequence] = useState(createSequence)
+  const [step, setStep] = useState(0)
+  const [boxColors, setBoxColors] = useState(
+    Array(GRID_SIZE).fill(DEFAULT_COLOR)
+  )
+  const [message, setMessage] = useState('Watch the order...')
+  const [displayPalette, setDisplayPalette] = useState(() => shuffle(PALETTE))
+  const [phase, setPhase] = useState('previewing')
+  useEffect(() => {
+    let cancelled = false
+    setPhase('previewing')
+    setMessage('Watch the order...')
+    setBoxColors(Array(GRID_SIZE).fill(DEFAULT_COLOR))
+    setDisplayPalette(shuffle(PALETTE))
+
+    const showStep = (i) => {
+      if (cancelled) return
+
+      if (i === GRID_SIZE) {
+        setBoxColors(Array(GRID_SIZE).fill(DEFAULT_COLOR))
+        setStep(0)
+        setPhase('ready')
+        setMessage('Now click the boxes in that order.')
+        return
+      }
+
+      const boxIndex = sequence[i]
+
+      setBoxColors((prev) => {
+        const next = [...prev]
+        next[boxIndex] = PALETTE[i]
+        return next
+      })
+
+      setTimeout(() => {
+        if (cancelled) return
+        setBoxColors((prev) => {
+          const next = [...prev]
+          next[boxIndex] = DEFAULT_COLOR
+          return next
+        })
+        setTimeout(() => showStep(i + 1), PREVIEW_GAP_MS)
+      }, PREVIEW_ON_MS)
+    }
+
+    showStep(0)
+
+    return () => {
+      cancelled = true
+    }
+  }, [sequence])
+
+  const resetProgress = () => {
+    setStep(0)
+    setBoxColors(Array(GRID_SIZE).fill(DEFAULT_COLOR))
+  }
+
+  const startNewRound = () => {
+    setSequence(createSequence())
+  }
+
+  const handleBoxClick = (index) => {
+    if (phase !== 'ready') return
+
+    const expectedIndex = sequence[step]
+    if (index !== expectedIndex) {
+      setMessage('Wrong box — starting over!')
+      resetProgress()
+      return
+    }
+
+    const nextColors = [...boxColors]
+    nextColors[index] = PALETTE[step]
+    setBoxColors(nextColors)
+
+    const nextStep = step + 1
+    setStep(nextStep)
+
+    if (nextStep === GRID_SIZE) {
+      setMessage('You matched the whole sequence! Jumbling a new one...')
+      setTimeout(startNewRound, 1200)
+    } else {
+      setMessage(`Correct! ${GRID_SIZE - nextStep} to go.`)
+    }
+  }
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      <div className="palette">
+        {displayPalette.map((color, index) => (
+          <Box key={index} color={color} />
+        ))}
+      </div>
 
-      <div className="ticks"></div>
+      <p className="status">{message}</p>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      <div className={`grid${phase === 'previewing' ? ' grid--locked' : ''}`}>
+        {boxColors.map((color, index) => (
+          <Box
+            key={index}
+            color={color}
+            onClick={() => handleBoxClick(index)}
+          />
+        ))}
+      </div>
     </>
   )
 }
